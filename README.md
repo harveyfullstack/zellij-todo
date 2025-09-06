@@ -1,5 +1,7 @@
 # zellij-todo
 
+> **⚠️ Development Status**: This plugin is currently under active development and may not be fully functional yet.
+
 A dead-simple [Zellij](https://zellij.dev) plugin for managing a persistent floating todo list with intuitive flow.
 
 ![Demo](https://via.placeholder.com/600x400/2d3748/ffffff?text=zellij-todo+demo)
