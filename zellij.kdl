@@ -1,0 +1,40 @@
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        children
+        pane size=2 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+
+    tab name="zellij-todo-dev" focus=true {
+        pane split_direction="vertical" {
+            pane name="editor" {
+                edit "src/main.rs"
+            }
+            pane size="50%" split_direction="horizontal" {
+                pane name="build" {
+                    command "cargo"
+                    args "build"
+                    close_on_exit true
+                }
+                pane name="plugin-dev" {
+                    plugin location="https://github.com/zellij-org/develop-rust-plugin/releases/latest/download/develop-rust-plugin.wasm"
+                }
+            }
+        }
+
+        floating_panes {
+            pane {
+                name "todo-plugin"
+                x "10%"
+                y "10%"
+                width "80%"
+                height "80%"
+                plugin location="file:target/wasm32-wasi/debug/zellij-todo.wasm"
+            }
+        }
+    }
+}
