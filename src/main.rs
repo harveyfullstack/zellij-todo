@@ -127,6 +127,24 @@ impl State {
                 }
                 true
             }
+            
+            // Vim-style navigation
+            BareKey::Char('k') if key.has_no_modifiers() => {
+                if self.grabbed_item_id.is_some() {
+                    self.move_grabbed_item_up();
+                } else if self.selected_index > 0 {
+                    self.selected_index -= 1;
+                }
+                true
+            }
+            BareKey::Char('j') if key.has_no_modifiers() => {
+                if self.grabbed_item_id.is_some() {
+                    self.move_grabbed_item_down();
+                } else if self.selected_index < self.items.len().saturating_sub(1) {
+                    self.selected_index += 1;
+                }
+                true
+            }
 
             // Toggle completion (or exit grab mode)
             BareKey::Char(' ') if key.has_no_modifiers() => {

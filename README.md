@@ -70,6 +70,7 @@ zellij plugin -- "file:$HOME/.config/zellij/plugins/zellij-todo.wasm"
 | Key       | Action                                    |
 | --------- | ----------------------------------------- |
 | `↑` / `↓` | Navigate up/down                          |
+| `k` / `j` | Navigate up/down (vim-style)              |
 | `Space`   | Toggle Todo (•) ⟷ Done (✓)               |
 | `g`       | Grab/release item for reordering          |
 | `a`       | Add new todo above current position       |
@@ -91,6 +92,7 @@ zellij plugin -- "file:$HOME/.config/zellij/plugins/zellij-todo.wasm"
 | Key       | Action                                      |
 | --------- | ------------------------------------------- |
 | `↑` / `↓` | Move grabbed item (auto-skips completed)    |
+| `k` / `j` | Move grabbed item (vim-style)               |
 | `g`       | Release grabbed item                        |
 | Any other | Exit grab mode                              |
 
