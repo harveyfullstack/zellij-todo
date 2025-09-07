@@ -371,10 +371,25 @@ impl State {
         self.next_id += 1;
         self.next_display_order += 1;
 
-        // Insert above current position, or at beginning if list is empty
-        let insert_pos = if self.items.is_empty() { 0 } else { self.selected_index };
-        self.items.insert(insert_pos, new_item);
-        self.selected_index = insert_pos;
+        if self.items.is_empty() {
+            // If list is empty, just add the first item
+            self.items.push(new_item);
+            self.selected_index = 0;
+        } else {
+            // Check if cursor is currently on a completed item
+            let current_item_is_done = self.items.get(self.selected_index).map(|item| item.done).unwrap_or(false);
+            
+            let insert_pos = if current_item_is_done {
+                // Cursor is on completed item - snap to end of todo section
+                self.items.iter().position(|item| item.done).unwrap_or(self.items.len())
+            } else {
+                // Cursor is on todo item - insert above current position
+                self.selected_index
+            };
+            
+            self.items.insert(insert_pos, new_item);
+            self.selected_index = insert_pos;
+        }
 
         self.start_editing_current();
     }
