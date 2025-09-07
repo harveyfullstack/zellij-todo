@@ -238,8 +238,13 @@ impl State {
 
     fn toggle_current_item(&mut self) {
         if let Some(item) = self.items.get_mut(self.selected_index) {
+            let original_cursor_position = self.selected_index;
             item.done = !item.done;
             self.sort_items();
+            
+            // Keep cursor at the same visual position instead of following the moved item
+            self.selected_index = std::cmp::min(original_cursor_position, self.items.len().saturating_sub(1));
+            
             self.save_todos();
         }
     }
