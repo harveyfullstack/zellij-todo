@@ -28,6 +28,8 @@ struct State {
     grabbed_item_id: Option<usize>,
     rows: usize,
     cols: usize,
+    cwd: String,
+    filename: String,
 }
 
 impl Default for Mode {
@@ -39,12 +41,16 @@ impl Default for Mode {
 register_plugin!(State);
 
 impl ZellijPlugin for State {
-    fn load(&mut self, _configuration: BTreeMap<String, String>) {
+    fn load(&mut self, configuration: BTreeMap<String, String>) {
         subscribe(&[EventType::Key, EventType::CustomMessage]);
         
         // Set terminal title that Zellij will use as pane name
         print!("\x1b]0;TODO\x07");
         io::stdout().flush().unwrap();
+        
+        // Configure file location - default to /host for current directory behavior
+        self.cwd = configuration.get("cwd").cloned().unwrap_or_else(|| "/host".to_string());
+        self.filename = configuration.get("filename").cloned().unwrap_or_else(|| ".zellij_todos.json".to_string());
         
         // Load persisted todos from file system if available
         self.load_todos();
@@ -562,9 +568,8 @@ impl State {
 
 
     fn load_todos(&mut self) {
-        // Load todos from host filesystem for global persistence
-        let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-        let todos_path = format!("{}/.config/zellij/todos.json", home_dir);
+        // Load todos from filesystem for persistence
+        let todos_path = format!("{}/{}", self.cwd, self.filename);
         if let Ok(data) = std::fs::read_to_string(&todos_path) {
             if let Ok(mut loaded_items) = serde_json::from_str::<Vec<TodoItem>>(&data) {
                 // Simple migration: assign display_order based on current position for items that don't have it
@@ -583,14 +588,9 @@ impl State {
     }
 
     fn save_todos(&self) {
-        // Save todos to host filesystem for global persistence
+        // Save todos to filesystem for persistence
         if let Ok(data) = serde_json::to_string_pretty(&self.items) {
-            let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-            let config_dir = format!("{}/.config/zellij", home_dir);
-            let todos_path = format!("{}/todos.json", config_dir);
-            
-            // Ensure the directory exists
-            let _ = std::fs::create_dir_all(&config_dir);
+            let todos_path = format!("{}/{}", self.cwd, self.filename);
             let _ = std::fs::write(&todos_path, data);
         }
     }

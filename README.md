@@ -28,7 +28,7 @@ Tested with Zellij `v0.43.x`
 
 ### Host Filesystem Access
 
-The plugin saves todos to `~/.config/zellij/todos.json` for global persistence across all Zellij sessions.
+The plugin saves todos to a configurable location for persistence across sessions. By default, it saves to `.zellij_todos.json` in the directory where Zellij was launched. For global todos across all sessions, configure the plugin with a specific directory path.
 
 ## Install
 
@@ -102,6 +102,31 @@ Items maintain their original order even when marked as done. When you toggle an
 
 ## Configuration
 
+### Global Todo File
+
+For a single global todo file shared across all Zellij sessions, configure the plugin with an absolute path:
+
+```kdl
+shared_except "locked" {
+    bind "Ctrl t" {
+        LaunchOrFocusPlugin "file:~/.config/zellij/plugins/zellij-todo.wasm" {
+            floating true
+            cwd "/home/username"  # or any absolute path you prefer
+            filename ".zellij_todos.json"
+        }
+    }
+}
+```
+
+**Configuration Options:**
+- `cwd`: Directory where the todo file will be saved (default: `/host` - current directory)
+- `filename`: Name of the todo file (default: `.zellij_todos.json`)
+
+**Examples:**
+- Global todos in home directory: `cwd "/home/username"`
+- Project-specific todos: `cwd "/home/username/projects"`
+- System-wide todos: `cwd "/etc/zellij"` (requires permissions)
+
 ### Keybinding Setup
 
 Add to your Zellij configuration (`~/.config/zellij/config.kdl`):
@@ -145,6 +170,6 @@ zellij -l zellij.kdl
 
 **Plugin doesn't load:** Ensure `wasm32-wasip1` target with `rustup target add wasm32-wasip1`
 
-**Items don't persist:** Plugin saves to `~/.config/zellij/todos.json` - check write permissions
+**Items don't persist:** Plugin saves to `.zellij_todos.json` in the current directory - check write permissions
 
 **Movement feels off:** Use grab mode (`g`) for reordering, arrow keys for navigation
