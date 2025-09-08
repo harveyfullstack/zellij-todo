@@ -28,7 +28,7 @@ Tested with Zellij `v0.43.x`
 
 ### Host Filesystem Access
 
-The plugin saves todos to `/host/.config/zellij/todos.json` for global persistence across all Zellij sessions.
+The plugin saves todos to `~/.config/zellij/todos.json` for global persistence across all Zellij sessions.
 
 ## Install
 
@@ -145,6 +145,6 @@ zellij -l zellij.kdl
 
 **Plugin doesn't load:** Ensure `wasm32-wasip1` target with `rustup target add wasm32-wasip1`
 
-**Items don't persist:** Plugin saves to `/host/.config/zellij/todos.json` - check write permissions
+**Items don't persist:** Plugin saves to `~/.config/zellij/todos.json` - check write permissions
 
 **Movement feels off:** Use grab mode (`g`) for reordering, arrow keys for navigation

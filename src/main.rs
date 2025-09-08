@@ -563,7 +563,9 @@ impl State {
 
     fn load_todos(&mut self) {
         // Load todos from host filesystem for global persistence
-        if let Ok(data) = std::fs::read_to_string("/host/.config/zellij/todos.json") {
+        let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let todos_path = format!("{}/.config/zellij/todos.json", home_dir);
+        if let Ok(data) = std::fs::read_to_string(&todos_path) {
             if let Ok(mut loaded_items) = serde_json::from_str::<Vec<TodoItem>>(&data) {
                 // Simple migration: assign display_order based on current position for items that don't have it
                 for (index, item) in loaded_items.iter_mut().enumerate() {
@@ -583,9 +585,13 @@ impl State {
     fn save_todos(&self) {
         // Save todos to host filesystem for global persistence
         if let Ok(data) = serde_json::to_string_pretty(&self.items) {
+            let home_dir = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+            let config_dir = format!("{}/.config/zellij", home_dir);
+            let todos_path = format!("{}/todos.json", config_dir);
+            
             // Ensure the directory exists
-            let _ = std::fs::create_dir_all("/host/.config/zellij");
-            let _ = std::fs::write("/host/.config/zellij/todos.json", data);
+            let _ = std::fs::create_dir_all(&config_dir);
+            let _ = std::fs::write(&todos_path, data);
         }
     }
 }
