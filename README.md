@@ -4,8 +4,6 @@
 
 A dead-simple [Zellij](https://zellij.dev) plugin for managing a persistent floating todo list with intuitive flow.
 
-![Demo](https://via.placeholder.com/600x400/2d3748/ffffff?text=zellij-todo+demo)
-
 ## Features
 
 - **Smart Ordering**: Items remember their positions when toggled between todo/done
