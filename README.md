@@ -10,6 +10,8 @@ A dead-simple [Zellij](https://zellij.dev) plugin for managing a persistent floa
 - **Visual Separation**: Todo items stay at top, completed items at bottom
 - **Grab & Reorder**: Move items with `g` + arrow keys, auto-skips completed items
 - **Quick Editing**: Add, edit, and delete with simple keyboard shortcuts
+- **Paste Support**: Paste text with Ctrl+V, automatically parses markdown lists
+- **Markdown List Parsing**: Converts pasted markdown lists into multiple todo items
 - **Floating Design**: Works as an overlay without disrupting your workflow
 - **Auto-persistence**: Saves automatically to filesystem
 
@@ -74,16 +76,18 @@ zellij plugin -- "file:$HOME/.config/zellij/plugins/zellij-todo.wasm"
 | `a`       | Add new todo above current position       |
 | `Enter`   | Edit current item                         |
 | `Delete`  | Delete current item                       |
+| `Ctrl+V`  | Paste text (parses markdown lists)        |
 | `q`       | Quit plugin                               |
 | `Esc`     | Exit grab mode or quit plugin             |
 
 #### Edit Mode
 
-| Key     | Action                              |
-| ------- | ----------------------------------- |
-| Type    | Replace/add text                    |
-| `Enter` | Save changes and return to Normal   |
-| `Esc`   | Cancel changes and return to Normal |
+| Key       | Action                              |
+| --------- | ----------------------------------- |
+| Type      | Replace/add text                    |
+| `Ctrl+V`  | Paste text at cursor position       |
+| `Enter`   | Save changes and return to Normal   |
+| `Esc`     | Cancel changes and return to Normal |
 
 #### Grab Mode
 
@@ -96,7 +100,31 @@ zellij plugin -- "file:$HOME/.config/zellij/plugins/zellij-todo.wasm"
 
 ## How It Works
 
+### Smart Ordering
 Items maintain their original order even when marked as done. When you toggle an item back to todo, it returns to its intended position. Reordering works intuitively - grab an item with `g` and move it with arrow keys. The plugin automatically skips over completed items so every keypress produces visible movement.
+
+### Paste and Markdown Support
+When you paste text (via Ctrl+V or through your terminal's paste mechanism), the plugin intelligently handles it:
+
+**In Normal Mode:**
+- Parses markdown lists and creates multiple todo items
+- Supports unordered lists (`- `, `* `, `+ `)
+- Supports ordered lists (`1. `, `2. `, etc.)
+- Recognizes task lists (`- [ ] ` for unchecked, `- [x] ` for checked)
+- Plain text is added as a single todo item
+
+**In Edit Mode:**
+- Pastes text directly at the cursor position
+- Multi-line pastes are trimmed to the first line
+
+**Example:** Pasting this markdown:
+```markdown
+- First task
+- [ ] Unchecked task
+- [x] Completed task
+1. Numbered item
+```
+Creates four todo items, with "Completed task" already marked as done.
 
 ## Configuration
 

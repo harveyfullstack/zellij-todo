@@ -43,7 +43,7 @@ register_plugin!(State);
 impl ZellijPlugin for State {
     fn load(&mut self, configuration: BTreeMap<String, String>) {
         subscribe(&[EventType::Key, EventType::CustomMessage]);
-        
+
         // Set terminal title that Zellij will use as pane name
         print!("\x1b]0;TODO\x07");
         io::stdout().flush().unwrap();
@@ -68,6 +68,9 @@ impl ZellijPlugin for State {
                 if message.contains("toggle") {
                     hide_self();
                     return false;
+                } else if !message.is_empty() {
+                    // Handle pasted text
+                    should_render = self.handle_paste(message);
                 }
             }
             _ => {}
@@ -206,6 +209,13 @@ impl State {
                 true
             }
 
+            // Paste with Ctrl+V
+            BareKey::Char('v') if key.has_modifiers(&[KeyModifier::Ctrl]) => {
+                // Ctrl+V in normal mode - paste will be handled via CustomMessage event
+                // Just return true to trigger re-render
+                true
+            }
+
             // Quit
             BareKey::Char('q') if key.has_no_modifiers() => {
                 hide_self();
@@ -247,6 +257,13 @@ impl State {
             // Backspace
             BareKey::Backspace if key.has_no_modifiers() => {
                 self.edit_buffer.pop();
+                true
+            }
+
+            // Paste with Ctrl+V
+            BareKey::Char('v') if key.has_modifiers(&[KeyModifier::Ctrl]) => {
+                // Ctrl+V in edit mode - paste will be handled via CustomMessage event
+                // Just return true to trigger re-render
                 true
             }
 
@@ -593,5 +610,179 @@ impl State {
             let todos_path = format!("{}/{}", self.cwd, self.filename);
             let _ = std::fs::write(&todos_path, data);
         }
+    }
+
+    fn handle_paste(&mut self, text: String) -> bool {
+        if text.is_empty() {
+            return false;
+        }
+
+        match self.mode {
+            Mode::Edit => {
+                // In edit mode, append the pasted text to the edit buffer
+                // If multi-line, only take the first line
+                let first_line = text.lines().next().unwrap_or("").trim();
+                self.edit_buffer.push_str(first_line);
+                true
+            }
+            Mode::Normal => {
+                // In normal mode, parse as markdown list and add multiple items
+                let items = self.parse_markdown_list(&text);
+                if !items.is_empty() {
+                    self.add_multiple_items(items);
+                    true
+                } else {
+                    // If not a markdown list, add as single item
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        self.add_single_item_from_text(trimmed.to_string());
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+        }
+    }
+
+    fn parse_markdown_list(&self, text: &str) -> Vec<(String, bool)> {
+        let mut items = Vec::new();
+
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            // Check for unordered list markers: -, *, +
+            if let Some(content) = trimmed.strip_prefix("- ") {
+                // Check for task list checkbox
+                if let Some(rest) = content.strip_prefix("[ ] ") {
+                    items.push((rest.to_string(), false));
+                } else if let Some(rest) = content.strip_prefix("[x] ") {
+                    items.push((rest.to_string(), true));
+                } else if let Some(rest) = content.strip_prefix("[X] ") {
+                    items.push((rest.to_string(), true));
+                } else {
+                    items.push((content.to_string(), false));
+                }
+            } else if let Some(content) = trimmed.strip_prefix("* ") {
+                // Check for task list checkbox
+                if let Some(rest) = content.strip_prefix("[ ] ") {
+                    items.push((rest.to_string(), false));
+                } else if let Some(rest) = content.strip_prefix("[x] ") {
+                    items.push((rest.to_string(), true));
+                } else if let Some(rest) = content.strip_prefix("[X] ") {
+                    items.push((rest.to_string(), true));
+                } else {
+                    items.push((content.to_string(), false));
+                }
+            } else if let Some(content) = trimmed.strip_prefix("+ ") {
+                // Check for task list checkbox
+                if let Some(rest) = content.strip_prefix("[ ] ") {
+                    items.push((rest.to_string(), false));
+                } else if let Some(rest) = content.strip_prefix("[x] ") {
+                    items.push((rest.to_string(), true));
+                } else if let Some(rest) = content.strip_prefix("[X] ") {
+                    items.push((rest.to_string(), true));
+                } else {
+                    items.push((content.to_string(), false));
+                }
+            } else {
+                // Check for ordered list (1., 2., etc.)
+                let parts: Vec<&str> = trimmed.splitn(2, ". ").collect();
+                if parts.len() == 2 && parts[0].chars().all(|c| c.is_ascii_digit()) && !parts[0].is_empty() {
+                    let content = parts[1];
+                    // Check for task list checkbox in ordered lists too
+                    if let Some(rest) = content.strip_prefix("[ ] ") {
+                        items.push((rest.to_string(), false));
+                    } else if let Some(rest) = content.strip_prefix("[x] ") {
+                        items.push((rest.to_string(), true));
+                    } else if let Some(rest) = content.strip_prefix("[X] ") {
+                        items.push((rest.to_string(), true));
+                    } else {
+                        items.push((content.to_string(), false));
+                    }
+                }
+            }
+        }
+
+        items
+    }
+
+    fn add_multiple_items(&mut self, items: Vec<(String, bool)>) {
+        // Determine insert position
+        let insert_pos = if self.items.is_empty() {
+            0
+        } else {
+            let current_item_is_done = self.items.get(self.selected_index)
+                .map(|item| item.done)
+                .unwrap_or(false);
+
+            if current_item_is_done {
+                // Insert at the end of the todo section
+                self.items.iter().position(|item| item.done).unwrap_or(self.items.len())
+            } else {
+                // Insert at current position
+                self.selected_index
+            }
+        };
+
+        // Add all items
+        let mut added_count = 0;
+        for (text, done) in items {
+            if !text.is_empty() {
+                let new_item = TodoItem {
+                    text,
+                    done,
+                    id: self.next_id,
+                    display_order: self.next_display_order,
+                };
+                self.next_id += 1;
+                self.next_display_order += 1;
+
+                self.items.insert(insert_pos + added_count, new_item);
+                added_count += 1;
+            }
+        }
+
+        // Update selection to first newly added item
+        if added_count > 0 {
+            self.selected_index = insert_pos;
+            self.sort_items();
+            self.save_todos();
+        }
+    }
+
+    fn add_single_item_from_text(&mut self, text: String) {
+        let new_item = TodoItem {
+            text,
+            done: false,
+            id: self.next_id,
+            display_order: self.next_display_order,
+        };
+        self.next_id += 1;
+        self.next_display_order += 1;
+
+        if self.items.is_empty() {
+            self.items.push(new_item);
+            self.selected_index = 0;
+        } else {
+            let current_item_is_done = self.items.get(self.selected_index)
+                .map(|item| item.done)
+                .unwrap_or(false);
+
+            let insert_pos = if current_item_is_done {
+                self.items.iter().position(|item| item.done).unwrap_or(self.items.len())
+            } else {
+                self.selected_index
+            };
+
+            self.items.insert(insert_pos, new_item);
+            self.selected_index = insert_pos;
+        }
+
+        self.sort_items();
+        self.save_todos();
     }
 }
