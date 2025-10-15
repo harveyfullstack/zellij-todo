@@ -368,41 +368,67 @@ impl State {
     }
 
     fn add_new_item(&mut self) {
-        let new_item = TodoItem {
-            text: String::new(),
-            done: false,
-            id: self.next_id,
-            display_order: self.next_display_order,
-        };
+        let new_id = self.next_id;
         self.next_id += 1;
-        self.next_display_order += 1;
 
-        if self.items.is_empty() {
-            // If list is empty, just add the first item
-            self.items.push(new_item);
-            self.selected_index = 0;
+        let (insert_pos, new_display_order) = if self.items.is_empty() {
+            (0, self.next_display_order)
         } else {
             // Check if cursor is currently on a completed item
-            let current_item_is_done = self.items.get(self.selected_index).map(|item| item.done).unwrap_or(false);
-            
+            let current_item_is_done = self
+                .items
+                .get(self.selected_index)
+                .map(|item| item.done)
+                .unwrap_or(false);
+
             let insert_pos = if current_item_is_done {
                 // Cursor is on completed item - snap to end of todo section
-                self.items.iter().position(|item| item.done).unwrap_or(self.items.len())
+                self.items
+                    .iter()
+                    .position(|item| item.done)
+                    .unwrap_or(self.items.len())
             } else {
                 // Cursor is on todo item - insert above current position
                 self.selected_index
             };
-            
-            self.items.insert(insert_pos, new_item);
-            self.selected_index = insert_pos;
-        }
+
+            let new_display_order = if insert_pos < self.items.len() {
+                let target_order = self.items[insert_pos].display_order;
+                // Shift all items at or after insert_pos up by 1
+                for item in self.items.iter_mut().skip(insert_pos) {
+                    item.display_order += 1;
+                }
+                target_order
+            } else {
+                self.next_display_order
+            };
+
+            (insert_pos, new_display_order)
+        };
+
+        let new_item = TodoItem {
+            text: String::new(),
+            done: false,
+            id: new_id,
+            display_order: new_display_order,
+        };
+
+        self.items.insert(insert_pos, new_item);
+        self.selected_index = insert_pos;
+        self.next_display_order = self
+            .items
+            .iter()
+            .map(|item| item.display_order)
+            .max()
+            .unwrap_or(0)
+            + 1;
 
         self.start_editing_current();
     }
 
     fn start_editing_current(&mut self) {
-        if let Some(_item) = self.items.get(self.selected_index) {
-            self.edit_buffer = String::new(); // Start with empty buffer for overwrite mode
+        if let Some(item) = self.items.get(self.selected_index) {
+            self.edit_buffer = item.text.clone();
             self.mode = Mode::Edit;
         }
     }
@@ -545,11 +571,7 @@ impl State {
                 )
             } else {
                 let max_text_width = self.cols.saturating_sub(6); // Account for grab indicator and bullet
-                let truncated_text = if item.text.len() > max_text_width {
-                    format!("{}…", &item.text[..max_text_width.saturating_sub(1)])
-                } else {
-                    item.text.clone()
-                };
+                let truncated_text = self.truncate_text(&item.text, max_text_width);
 
                 format!("{}{}{}{} {}{}{}",
                     grab_indicator,
@@ -566,6 +588,28 @@ impl State {
         }
     }
 
+    fn truncate_text(&self, text: &str, max_chars: usize) -> String {
+        if max_chars == 0 {
+            return String::new();
+        }
+
+        let chars: Vec<char> = text.chars().collect();
+        if chars.len() <= max_chars {
+            return text.to_string();
+        }
+
+        if max_chars == 1 {
+            return "…".to_string();
+        }
+
+        let mut truncated = String::with_capacity(max_chars);
+        for c in chars.iter().take(max_chars - 1) {
+            truncated.push(*c);
+        }
+        truncated.push('…');
+        truncated
+    }
+
 
     fn load_todos(&mut self) {
         // Load todos from filesystem for persistence
@@ -578,7 +622,7 @@ impl State {
                         item.display_order = index;
                     }
                 }
-                
+
                 self.items = loaded_items;
                 self.next_id = self.items.iter().map(|item| item.id).max().unwrap_or(0) + 1;
                 self.next_display_order = self.items.iter().map(|item| item.display_order).max().unwrap_or(0) + 1;
